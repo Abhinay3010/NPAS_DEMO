@@ -8,11 +8,54 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: engineerd/setup-kind@v0.5.0
-      - run: kind create cluster --name npas-demo
+      # 1️⃣ Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      # 2️⃣ Set up Docker (required for Kind)
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      # 3️⃣ Install kubectl (latest stable)
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      # 4️⃣ Install Kind (modern version)
+      - name: Install Kind
+        uses: engineerd/setup-kind@v0.6.2
+        with:
+          version: v0.21.0
+
+      # 5️⃣ Create Kind cluster with valid node image
+      - name: Create Kind cluster
+        run: |
+          cat <<EOF > kind-config.yaml
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+            - role: control-plane
+            - role: worker
+            - role: worker
+          EOF
+
+          kind create cluster \
+            --name npas-demo \
+            --image kindest/node:v1.29.1 \
+            --wait 5m \
+            --config kind-config.yaml
+
+      # 6️⃣ Verify cluster
+      - name: Verify cluster
+        run: |
+          kubectl cluster-info
+          kubectl get nodes -o wide
+
+      # 7️⃣ Deploy platform
       - name: Deploy platform
         run: |
-          export kubeconfig=$HOME/.kube/config
+          # Make sure scripts have proper line endings
+          sed -i 's/\r$//' shell/upgradehelmcharts.sh
+          export KUBECONFIG=$HOME/.kube/config
           source shell/upgradehelmcharts.sh platform/platformselector.yaml
