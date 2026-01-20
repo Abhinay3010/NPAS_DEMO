@@ -1,57 +1,21 @@
-name: Phase 3 - Setup Authentication
+name: Setup Authentication
 
 on:
   workflow_dispatch:
 
 jobs:
-  setup-auth:
+  auth:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: engineerd/setup-kind@v0.5.0
+      - run: kind create cluster --name npas-demo
 
-      - name: Install dependencies
+      - name: LDAP Federation
         run: |
-          sudo apt-get update
-          sudo apt-get install -y curl jq python3 python3-pip
-          pip3 install requests
+          source shell/userfederation.sh authentication/keycloak/userfederation.json
 
-      # ---------- KUBE CONFIG ----------
-      - name: Setup kubeconfig
+      - name: Create Users
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 -d > ~/.kube/config
-
-      # ---------- STEP 1: LDAP ----------
-      - name: Step 1 - Setup LDAP User Federation
-        run: |
-          chmod +x shell/userfederation.sh
-          ./shell/userfederation.sh authentication/keycloak/userfederation.json
-
-      # ---------- STEP 2: REALM ----------
-      - name: Step 2 - Setup Keycloak Realm
-        run: |
-          chmod +x shell/keycloak.py
-          python3 shell/keycloak.py create-realm
-
-      # ---------- STEP 3: USERS ----------
-      - name: Step 3 - Create Keycloak Users
-        run: |
-          chmod +x shell/keycloakusers.sh
-          ./shell/keycloakusers.sh
-
-      # ---------- STEP 4: ROLE & GROUP MAPPING ----------
-      - name: Step 4 - Setup Roles and Groups
-        run: |
-          python3 shell/keycloak/setup_roles_and_groups.py
-
-      # ---------- STEP 5: CLIENT SCOPE ----------
-      - name: Step 5 - Setup Client Scopes
-        run: |
-          python3 shell/keycloak/setup_clientscope.py
-
-      # ---------- STEP 6: AUTH FLOWS ----------
-      - name: Step 6 - Setup Authentication Flows
-        run: |
-          python3 shell/keycloak/setup_authentication_flows.py
+          source shell/keycloakusers.sh
