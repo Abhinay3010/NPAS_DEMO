@@ -1,4 +1,4 @@
-name: Phase 1 - Backup
+name: NPAS Backup
 
 on:
   workflow_dispatch:
@@ -8,41 +8,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up tools
+      - uses: engineerd/setup-kind@v0.5.0
+
+      - run: kind create cluster --name npas-demo
+
+      - name: Backup Apps
         run: |
-          sudo apt-get update
-          sudo apt-get install -y curl unzip
-          curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o yq
-          chmod +x yq
-          sudo mv yq /usr/local/bin/yq
-
-      # ---------- SONAR ----------
-      - name: Sonar Scan (non-blocking)
-        continue-on-error: true
-        uses: sonarsource/sonarcloud-github-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=NPAS_DEMO
-            -Dsonar.organization=npas-demo
-            -Dsonar.sources=.
-
-      # ---------- BACKUP ----------
-      - name: Backup Applications Data (Velero)
-        run: |
-          chmod +x shell/velero_app_backup.sh
+          export kubeconfig=$HOME/.kube/config
           source shell/velero_app_backup.sh
-
-      - name: Backup Application Config
-        run: |
-          chmod +x shell/helm_rancher_diff_report.sh || true
-          source shell/helm_rancher_diff_report.sh applications/applicationselector.yaml || true
-
-      - name: Backup Platform Config
-        run: |
-          chmod +x shell/helm_rancher_diff_report.sh || true
-          source shell/helm_rancher_diff_report.sh platform/platformselector.yaml || true
