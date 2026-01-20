@@ -1,0 +1,20 @@
+applications:
+  - name: order-service
+    namespace: npas-applications
+    chart: demo-charts/order
+    values: values/order.yaml
+
+  - name: payment-service
+    namespace: npas-applications
+    chart: demo-charts/payment
+    values: values/payment.yaml
+
+  - name: user-service
+    namespace: npas-applications
+    chart: demo-charts/user
+    values: values/user.yaml
+
+  - name: frontend-app
+    namespace: npas-applications
+    chart: demo-charts/frontend
+    values: values/frontend.yaml
