@@ -1,4 +1,4 @@
-name: Phase 2 - Deploy Platform
+name: Deploy Platform
 
 on:
   workflow_dispatch:
@@ -8,61 +8,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: engineerd/setup-kind@v0.5.0
+      - run: kind create cluster --name npas-demo
 
-      - name: Install dependencies
+      - name: Deploy platform
         run: |
-          sudo apt-get update
-          sudo apt-get install -y curl unzip
-          curl -sSL https://get.helm.sh/helm-v3.14.2-linux-amd64.tar.gz | tar xz
-          sudo mv linux-amd64/helm /usr/local/bin/helm
-          curl -sSL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o yq
-          chmod +x yq
-          sudo mv yq /usr/local/bin/yq
-
-      # ---------- KUBE CONFIG ----------
-      - name: Setup kubeconfig
-        run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 -d > ~/.kube/config
-
-      # ---------- SONAR ----------
-      - name: Sonar Scan (non-blocking)
-        continue-on-error: true
-        uses: sonarsource/sonarcloud-github-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.projectKey=NPAS_DEMO
-            -Dsonar.organization=npas-demo
-            -Dsonar.sources=.
-
-      # ---------- SYFT ----------
-      - name: Generate SBOM (Syft)
-        continue-on-error: true
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh
-          ./bin/syft dir:. -o table
-
-      # ---------- TRIVY ----------
-      - name: Trivy filesystem scan
-        continue-on-error: true
-        uses: aquasecurity/trivy-action@0.20.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          format: table
-
-      # ---------- FLUENT BIT CONFIG INJECTION ----------
-      - name: Inject Fluent Bit Config
-        run: |
-          chmod +x fluentbitconfig/fluentconf-injector.sh
-          ./fluentbitconfig/fluentconf-injector.sh
-
-      # ---------- PLATFORM DEPLOY ----------
-      - name: Deploy Platform Components
-        run: |
-          chmod +x shell/upgradehelmcharts.sh
-          ./shell/upgradehelmcharts.sh platform/platformselector.yaml
+          export kubeconfig=$HOME/.kube/config
+          source shell/upgradehelmcharts.sh platform/platformselector.yaml
