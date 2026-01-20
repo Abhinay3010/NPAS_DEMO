@@ -8,15 +8,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: engineerd/setup-kind@v0.5.0
-      - run: kind create cluster --name npas-demo
+      # Step 1: Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      # Step 2: Set up Kind (modern version)
+      - name: Set up Kind
+        uses: engineerd/setup-kind@v0.6.2
+        with:
+          version: v0.20.0   # Modern Kind version
+
+      # Step 3: Create a Kind cluster with modern K8s node
+      - name: Create Kind cluster
+        run: |
+          kind create cluster \
+            --name npas-demo \
+            --image kindest/node:v1.27.3 \
+            --wait 300s
+
+      # Step 4: Inject Fluentbit
       - name: Inject Fluentbit
         run: |
+          # Remove Windows line endings if any
           sed -i 's/\r$//' fluentbitconfig/fluentconf-injector.sh
+          # Source the injector script with the application selector
           source fluentbitconfig/fluentconf-injector.sh applications/applicationselector.yaml
 
-      - name: Deploy apps
+      # Step 5: Deploy applications
+      - name: Deploy applications
         run: |
+          # Remove Windows line endings if your shell script has CRLF
+          sed -i 's/\r$//' shell/upgradehelmcharts.sh
+          # Source the Helm upgrade script with application selector
           source shell/upgradehelmcharts.sh applications/applicationselector.yaml
