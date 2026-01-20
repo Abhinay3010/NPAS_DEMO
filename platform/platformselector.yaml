@@ -1,0 +1,94 @@
+Components:
+
+  # ---------------------------
+  # Ingress Controller
+  # ---------------------------
+  - name: nginx-ingress
+    enabled: true
+    chart: ingress-nginx
+    version: 4.10.0
+    namespace: ${namespaceprefix}-platform
+    configuration:
+      - parameter: controller.replicaCount
+        style: none
+        value: 1
+      - parameter: controller.service.type
+        style: none
+        value: NodePort
+
+
+  # ---------------------------
+  # Metrics (Prometheus)
+  # ---------------------------
+  - name: prometheus
+    enabled: true
+    chart: kube-prometheus-stack
+    version: 57.0.3
+    namespace: ${namespaceprefix}-platform
+    configuration:
+      - parameter: prometheus.prometheusSpec.retention
+        style: none
+        value: 6h
+      - parameter: grafana.enabled
+        style: none
+        value: true
+
+
+  # ---------------------------
+  # Logging (EFK-lite using Fluent Bit)
+  # ---------------------------
+  - name: fluent-bit
+    enabled: true
+    chart: fluent-bit
+    version: 0.47.10
+    namespace: ${namespaceprefix}-platform
+    configuration:
+      - parameter: service.type
+        style: none
+        value: ClusterIP
+
+
+  # ---------------------------
+  # Authentication (Keycloak)
+  # ---------------------------
+  - name: keycloak
+    enabled: true
+    chart: keycloak
+    version: 24.1.2
+    namespace: ${namespaceprefix}-platform
+    configuration:
+      - parameter: auth.adminUser
+        style: none
+        value: admin
+      - parameter: auth.adminPassword
+        style: none
+        value: ${keycloakpw}
+      - parameter: http.enabled
+        style: none
+        value: true
+      - parameter: ingress.enabled
+        style: none
+        value: true
+      - parameter: ingress.hostname
+        style: none
+        value: keycloak.${kubedomain}
+      - parameter: postgresql.enabled
+        style: none
+        value: true
+
+
+  # ---------------------------
+  # Internal Database (Postgres)
+  # ---------------------------
+  - name: postgres
+    enabled: true
+    chart: postgresql
+    version: 15.5.21
+    namespace: ${namespaceprefix}-platform
+    configuration:
+      - parameter: auth.postgresPassword
+        style: none
+        value: ${postgrespw}
+      - parameter: primary.persistence.enabled
+        style: none
+        value: false
