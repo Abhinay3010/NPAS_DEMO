@@ -28,7 +28,7 @@ jobs:
         with:
           version: v0.21.0
 
-      # 5️⃣ Create Kind cluster with valid node image
+      # 5️⃣ Create Kind cluster with pinned node image
       - name: Create Kind cluster
         run: |
           cat <<EOF > kind-config.yaml
@@ -46,16 +46,42 @@ jobs:
             --wait 5m \
             --config kind-config.yaml
 
-      # 6️⃣ Verify cluster
+      # 6️⃣ Wait for all nodes to be Ready
+      - name: Wait for all nodes
+        run: |
+          echo "Waiting for all nodes to be Ready..."
+          for i in {1..10}; do
+            NOTREADY=$(kubectl get nodes --no-headers | grep -v Ready | wc -l)
+            if [ "$NOTREADY" -eq 0 ]; then
+              echo "All nodes are Ready!"
+              break
+            fi
+            echo "Some nodes not ready yet. Waiting 10s..."
+            sleep 10
+          done
+          kubectl get nodes -o wide
+
+      # 7️⃣ Verify cluster
       - name: Verify cluster
         run: |
           kubectl cluster-info
           kubectl get nodes -o wide
 
-      # 7️⃣ Deploy platform
+      # 8️⃣ Deploy platform using Helm
       - name: Deploy platform
         run: |
-          # Make sure scripts have proper line endings
+          # Ensure scripts have proper line endings
           sed -i 's/\r$//' shell/upgradehelmcharts.sh
+
+          # Export kubeconfig for scripts
           export KUBECONFIG=$HOME/.kube/config
+
+          # Check that platform selector exists
+          if [ ! -f platform/platformselector.yaml ]; then
+            echo "Error: platform/platformselector.yaml not found!"
+            ls -R platform
+            exit 1
+          fi
+
+          # Run the Helm upgrade script
           source shell/upgradehelmcharts.sh platform/platformselector.yaml
