@@ -1,42 +1,22 @@
-name: Phase 4 - Deploy Applications
+name: Deploy Applications
 
 on:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy-apps:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+      - uses: engineerd/setup-kind@v0.5.0
+      - run: kind create cluster --name npas-demo
 
-      - name: Install tools
+      - name: Inject Fluentbit
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq python3
-          curl -s https://raw.githubusercontent.com/mikefarah/yq/v4.40.5/yq_linux_amd64 \
-            -o /usr/local/bin/yq
-          chmod +x /usr/local/bin/yq
+          sed -i 's/\r$//' fluentbitconfig/fluentconf-injector.sh
+          source fluentbitconfig/fluentconf-injector.sh applications/applicationselector.yaml
 
-      - name: Configure kubeconfig
+      - name: Deploy apps
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_DATA }}" | base64 -d > ~/.kube/config
-
-      - name: Inject FluentBit
-        run: |
-          chmod +x fluentbitconfig/fluentconf-injector.sh
-          ./fluentbitconfig/fluentconf-injector.sh applications/applicationselector.yaml
-
-      - name: Setup Keycloak
-        run: python3 shell/keycloak.py
-
-      - name: Deploy Applications
-        run: |
-          chmod +x shell/upgradehelmcharts.sh
-          ./shell/upgradehelmcharts.sh applications/applicationselector.yaml
-
-      - name: VPN-less Ingress
-        run: |
-          chmod +x shell/npas-tls-vpnless-ingress.sh
-          ./shell/npas-tls-vpnless-ingress.sh
+          source shell/upgradehelmcharts.sh applications/applicationselector.yaml
