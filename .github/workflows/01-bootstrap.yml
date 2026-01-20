@@ -24,17 +24,13 @@ jobs:
       # Create kind cluster with pinned node image
       - name: Create kind cluster
         run: |
-          kind create cluster \
-            --name npas-demo \
-            --image kindest/node:v1.28.2 \
-            --wait 5m \
-            --config - <<EOF
+          kind create cluster --name npas-demo --image kindest/node:v1.28.2 --wait 5m --config - <<EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
-  - role: control-plane
-  - role: worker
-  - role: worker
+- role: control-plane
+- role: worker
+- role: worker
 EOF
 
       # Verify cluster
